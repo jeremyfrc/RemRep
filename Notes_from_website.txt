@@ -27,7 +27,7 @@ a759c57 HEAD@{1}: commit: Add call to disk_full function
 abd2b88 HEAD@{8}: commit: Add a new function to it.
 df9ea85 HEAD@{9}: commit (initial): Add all_checks scripts.
 
-=====================================================================================================================================
+========================================================================================================================================================================
 
 工作区和暂存区
 版本库（Repository）
@@ -302,10 +302,102 @@ $ git branch -D feature-vulcan
 Deleted branch feature-vulcan (was 287773e).
 //////////////////////////////////////////////////////////////////////////
 
+多人协作
 
+多人协作的工作模式通常是这样：
 
+首先，可以试图用git push origin <branch-name>推送自己的修改；
+如果推送失败，则因为远程分支比你的本地更新，需要先用git pull试图合并；
+如果合并有冲突，则解决冲突，并在本地提交；
+没有冲突或者解决掉冲突后，再用git push origin <branch-name>推送就能成功！
+如果git pull提示no tracking information，则说明本地分支和远程分支的链接关系没有创建，用命令git branch --set-upstream-to <branch-name> origin/<branch-name>。
+这就是多人协作的工作模式，一旦熟悉了，就非常简单。
 
+查看远程库信息，使用git remote -v；
+本地新建的分支如果不推送到远程，对其他人就是不可见的；
+从本地推送分支，使用git push origin branch-name，如果推送失败，先用git pull抓取远程的新提交；
+在本地创建和远程分支对应的分支，使用git checkout -b branch-name origin/branch-name，本地和远程分支的名称最好一致；
+建立本地分支和远程分支的关联，使用git branch --set-upstream branch-name origin/branch-name；
+从远程抓取分支，使用git pull，如果有冲突，要先处理冲突。
 
+Rebase
 
+每次合并再push后，分支变成了这样：
+/////////////////////////////////////////////////////
+$ git log --graph --pretty=oneline --abbrev-commit
+* d1be385 (HEAD -> master, origin/master) init hello
+*   e5e69f1 Merge branch 'dev'
+|\  
+| *   57c53ab (origin/dev, dev) fix env conflict
+| |\  
+| | * 7a5e5dd add env
+| * | 7bd91f1 add new env
+| |/  
+* |   12a631b merged bug fix 101
+|\ \  
+| * | 4c805e2 fix bug 101
+|/ /  
+* |   e1e9c68 merge with no-ff
+|\ \  
+| |/  
+| * f52c633 add merge
+|/  
+*   cf810e4 conflict fixed
+
+加上刚才合并的提交，现在我们本地分支比远程分支超前3个提交。
+
+用git log看看：
+
+$ git log --graph --pretty=oneline --abbrev-commit
+*   e0ea545 (HEAD -> master) Merge branch 'master' of github.com:michaelliao/learngit
+|\  
+| * f005ed4 (origin/master) set exit=1
+* | 582d922 add author
+* | 8875536 add comment
+|/  
+* d1be385 init hello
+...
+
+/////////////////////////////////////////////////////
+总之看上去很乱，有强迫症的童鞋会问：为什么Git的提交历史不能是一条干净的直线？
+
+这个时候，rebase就派上了用场。我们输入命令git rebase试试：
+///////////////////////////////////////////////////////////
+$ git rebase
+First, rewinding head to replay your work on top of it...
+Applying: add comment
+Using index info to reconstruct a base tree...
+M	hello.py
+Falling back to patching base and 3-way merge...
+Auto-merging hello.py
+Applying: add author
+Using index info to reconstruct a base tree...
+M	hello.py
+Falling back to patching base and 3-way merge...
+Auto-merging hello.py
+//////////////////////////////////////////////////////////
+输出了一大堆操作，到底是啥效果？再用git log看看：
+
+$ git log --graph --pretty=oneline --abbrev-commit
+* 7e61ed4 (HEAD -> master) add author
+* 3611cfe add comment
+* f005ed4 (origin/master) set exit=1
+* d1be385 init hello
+...
+
+原本分叉的提交现在变成一条直线了！这种神奇的操作是怎么实现的？其实原理非常简单。我们注意观察，发现Git把我们本地的提交“挪动”了位置，放到了f005ed4 (origin/master) set exit=1之后，这样，整个提交历史就成了一条直线。rebase操作前后，最终的提交内容是一致的，但是，我们本地的commit修改内容已经变化了，它们的修改不再基于d1be385 init hello，而是基于f005ed4 (origin/master) set exit=1，但最后的提交7e61ed4内容是一致的。
+这就是rebase操作的特点：把分叉的提交历史“整理”成一条直线，看上去更直观。缺点是本地的分叉提交已经被修改过了。
+最后，通过push操作把本地分支推送到远程
+再用git log看看效果：
+
+$ git log --graph --pretty=oneline --abbrev-commit
+* 7e61ed4 (HEAD -> master, origin/master) add author
+* 3611cfe add comment
+* f005ed4 set exit=1
+* d1be385 init hello
+...
+
+rebase操作可以把本地未push的分叉提交历史整理成直线；
+rebase的目的是使得我们在查看历史提交的变化时更容易，因为分叉的提交需要三方对比。
 
 
